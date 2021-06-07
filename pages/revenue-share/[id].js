@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router'
-import useSWR from 'swr'
+import Link from 'next/link'
+import useSWR, { mutate } from 'swr'
 import PulseLoader from 'react-spinners/PulseLoader';
 import { useAuth } from '../../context/auth';
 import api from '../../lib/api';
-import { initRevenueSharing } from '../../lib/solana';
+import { initRevenueShare } from '../../lib/solana';
 import Protected from '../../components/Protected';
 import Button from "../../components/Button";
 import Layout from '../../components/AppLayout';
@@ -12,13 +13,14 @@ import NotificationPanel from '../../components/NotificationPanel';
 import getIcon from '../../components/Icons';
 
 const ROYALTY_STRUCTURE_PATH = process.env.NEXT_PUBLIC_ROYALTY_STRUCTURE_PATH;
+const TOKEN_MINT_ACCT = process.env.NEXT_PUBLIC_TOKEN_MINT_ACCT;
 
 // Icons
 const IconArrowCircleDown = getIcon('arrowCircleDown');
 const IconArrowCircleUp = getIcon('arrowCircleUp');
 const IconTrash = getIcon('trash');
 
-export default function RoyaltyStructure() {
+export default function RevenueShare() {
 
   // Data fetching
   const { isReady } = useAuth();
@@ -39,6 +41,9 @@ export default function RoyaltyStructure() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [createAcctSuccess, setCreateAcctSuccess] = useState(false);
+  const [createAcctError, setCreateAcctError] = useState(false);
+
   const blankAlias = useRef(null);
   
   // Update Royalty Structure state on data fetch
@@ -114,17 +119,29 @@ export default function RoyaltyStructure() {
   }
 
   async function onInitRevenueSharing() {
+    setSaving(true);
     const member1 = payees[0];
     const member2 = payees[1];
     const member1Acct = member1.identifier;
     const member2Acct = member2.identifier;
     const member1Shares = member1.amount;
     const member2Shares = member2.amount;
-    const result = await initRevenueSharing(member1Acct, member2Acct, member1Shares, member2Shares);
-    console.log('onInitRevenueSharing() - result', result);
-    setAccount(result.sharedAcct);
-    setStateAccount(result.stateAcct);
-    // TODO update database
+    const result = await initRevenueShare(member1Acct, member2Acct, member1Shares, member2Shares);
+   
+    const method = 'PUT';
+    const url = `${ROYALTY_STRUCTURE_PATH}/${id}`;
+    const data = { id, account: result.sharedAcct, state_account: result.stateAcct };
+    try {
+      const response = await api.request({ method, url, data });
+      setSaving(false);
+      setCreateAcctSuccess(true);
+      setTimeout(() => setCreateAcctSuccess(false), 2000);
+      mutate(`${ROYALTY_STRUCTURE_PATH}/${id}`);
+    } catch (err) {
+      console.log('err', err)
+      setCreateAcctError(true);
+      setTimeout(() => setCreateAcctError(false), 2000);
+    }
   }
 
   function renderPayees(payees, selected) {
@@ -158,7 +175,7 @@ export default function RoyaltyStructure() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="identifier" className="block text-sm font-medium text-gray-700">Solana Public Key</label>
+                  <label htmlFor="identifier" className="block text-sm font-medium text-gray-700">Main Account Public Key</label>
                   <input 
                     type="text" 
                     name="identifier" 
@@ -205,10 +222,12 @@ export default function RoyaltyStructure() {
         <main className="flex-1 relative z-0 overflow-y-auto focus:outline-none" tabIndex="0">
           <div className="py-6">
             <div className="max-w-7xl mx-auto mb-4 px-4 sm:px-6 md:px-8">
-              <h1 className="text-2xl font-semibold text-gray-900">Revenue Sharing</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">Revenue Share</h1>
             </div>
             <NotificationPanel show={saveSuccess} bgColor="bg-green-100" message="Revenue Sharing Saved!" />
             <NotificationPanel show={saveError} bgColor="bg-red-100" message="Error saving Revenue Sharing!" />
+            <NotificationPanel show={createAcctSuccess} bgColor="bg-green-100" message="Shared Account created successfully!" />
+            <NotificationPanel show={createAcctError} bgColor="bg-red-100" message="Error creating Shared Account!" />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
               <div id="new-publication-form" className="mt-5 md:mt-0 md:col-span-2">
                 <form onSubmit={onSubmit}>
@@ -226,7 +245,18 @@ export default function RoyaltyStructure() {
                         />
                       </div>
                       <div className="col-span-6 sm:col-span-4">
-                        <label htmlFor="account" className="block text-sm font-medium text-gray-700">Shared Account</label>
+                        <label htmlFor="tokenMintAccount" className="block text-sm font-medium text-gray-700">Token Mint Account</label>
+                        <input 
+                          type="text" 
+                          name="tokenMintAccount"
+                          value={TOKEN_MINT_ACCT}
+                          disabled
+                          onChange={evt => setAccount(evt.target.value)} 
+                          className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-50" 
+                        />
+                      </div>
+                      <div className="col-span-6 sm:col-span-4">
+                        <label htmlFor="account" className="block text-sm font-medium text-gray-700">Shared Token Account</label>
                         <input 
                           type="text" 
                           name="account"
@@ -248,7 +278,7 @@ export default function RoyaltyStructure() {
                         />
                       </div>
                       <div className="col-span-6 sm:col-span-4">
-                        <label htmlFor="publisher" className="block text-sm font-medium text-gray-700">Shareholders</label>
+                        <label htmlFor="publisher" className="block text-sm font-medium text-gray-700">Recipients</label>
                         <div className="flex flex-col">
                           <div className="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                             <div className="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
@@ -258,7 +288,7 @@ export default function RoyaltyStructure() {
                                     <div className="bg-white text-center">
                                       <div>
                                         <button type="button" onClick={addPayee} className="h-10 my-2 py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-300 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                                          Add Shareholder
+                                          Add Recipient
                                         </button>
                                       </div>
                                     </div>
@@ -270,7 +300,18 @@ export default function RoyaltyStructure() {
                       </div>
                     </div>
                     <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
-                      <Button label="Create Shared Account" color="indigo" disabled={false} onClick={onInitRevenueSharing} />
+                      {
+                        id ? (
+                          <Button label="Create Shared Account" color="indigo" disabled={false} onClick={onInitRevenueSharing} />
+                        ) : (<></>)
+                      }
+                      {
+                        account ? (
+                          <Link href={`/withdraw/?stateAcct=${state_account}&sharedAcct=${account}`}>
+                            <a className={`inline-box h-30 w-30 inline-flex justify-center py-2 px-4 mr-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600  hover:bg-indigo-700' cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`} >Withdraw Funds</a>
+                          </Link>
+                        ) : (<></>)
+                      }
                       { saving ? (
                           <div className="inline-block text-center py-2 px-2 border border-transparent shadow-sm rounded-md h-10 w-20 bg-indigo-600 hover:bg-indigo-700">
                             <PulseLoader color="white" loading={saving} size={9} /> 

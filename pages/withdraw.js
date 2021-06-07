@@ -1,33 +1,86 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PulseLoader from 'react-spinners/PulseLoader';
-import { useAuth } from '../context/auth';
-import { withdraw } from '../lib/solana';
+import { useRouter } from 'next/router'
+import { fetchRevenueShareData, getTokenAccountsByOwner, getWallet, withdraw } from '../lib/solana';
+import Button from "../components/Button";
 import Layout from '../components/AppLayout';
 import NotificationPanel from '../components/NotificationPanel';
 
-const member1XAcct = '6FGu3gyzDrrubxk2wwbHchs3CGcM2kutpikQbGj6vSE2';
-const member2XAcct = '2xhkkkAgLXyxmGXVwxC72uJLUxEnUFDZXVhyzNMktZLa';
-
-const memberxAccount = member1XAcct
+const TOKEN_MINT_ACCT = process.env.NEXT_PUBLIC_TOKEN_MINT_ACCT;
 
 export default function Withdraw() {
-  const { wallet, setWallet } = useAuth();
+  // Get url query params
+  const router = useRouter();
+  const stateAcct = router.query.stateAcct || '';
+  const sharedAcct = router.query.sharedAcct || '';
 
-  // State Account state
+  // Shared account balance
+  const [sharedAcctBalance, setSharedAcctBalance] = useState('');
+
+  // State account state 
+  const [member1Acct, setMember1Acct] = useState('');
+  const [member2Acct, setMember2Acct] = useState('');
+  const [member1Shares, setMember1Shares] = useState('');
+  const [member2Shares, setMember2Shares] = useState('');
+  const [member1Withdraw, setMember1Withdraw] = useState('');
+  const [member2Withdraw, setMember2Withdraw] = useState('');
+
+  // Withdraw state
+  const [maxWithdrawAmount, setMaxWithdrawAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [withdrawAccount, setWithdrawAccount] = useState(memberxAccount);
-
+  const [withdrawAcct, setWithdrawAcct] = useState('');
+  const [walletAcct, setWalletAcct] = useState('');
+  
   // UI state
   const [fetching, setFetching] = useState(false);
   const [fetchSuccess, setFetchSuccess] = useState(false);
   const [fetchError, setFetchError] = useState(false);
+  const [wallet, setWallet] = useState(null);
+
+  // Update shared account balance and state account state
+  useEffect(async () => {
+    if (stateAcct && sharedAcct) {
+      const data = await fetchRevenueShareData(stateAcct, sharedAcct);
+      setSharedAcctBalance(data.sharedAcctBalance);
+      setMember1Acct(data.member1Acct);
+      setMember2Acct(data.member2Acct);
+      setMember1Shares(data.member1Shares);
+      setMember2Shares(data.member2Shares);
+      setMember1Withdraw(data.member1Withdraw);
+      setMember2Withdraw(data.member2Withdraw);
+    } 
+  }, [stateAcct, sharedAcct])
+
+  async function onConnectWallet() {
+    const wallet = await getWallet();
+    setWallet(wallet);
+    setWalletAcct(wallet.publicKey.toBase58());
+    const tokenAccts = await getTokenAccountsByOwner(wallet.publicKey); // TODO: filter using token mint address
+    const withdrawAcct = tokenAccts.value[0].pubkey.toBase58();
+    setWithdrawAcct(withdrawAcct);
+  }
+
+  function calculateMaxWithdrawAmount() {
+    const totalDeposited = sharedAcctBalance + member1Withdraw + member2Withdraw;
+    const isMember1 = (walletAcct === member1Acct);
+    let maxWithdrawAmount;
+    if (isMember1) {
+      maxWithdrawAmount = (totalDeposited * member1Shares / 100) - member1Withdraw;
+    } else {
+      maxWithdrawAmount = (totalDeposited * member2Shares / 100) - member2Withdraw;
+    }
+    setWithdrawAmount(maxWithdrawAmount)
+  }
 
   async function onSubmit (e) {
     e.preventDefault()
     setFetching(true);
 
     try {
-      const result = await withdraw(withdrawAmount, withdrawAccount);
+      await withdraw(stateAcct, sharedAcct, withdrawAmount, withdrawAcct);
+      const data = await fetchRevenueShareData(stateAcct, sharedAcct);
+      setMember1Withdraw(data.member1Withdraw);
+      setMember2Withdraw(data.member2Withdraw);
       setFetching(false);
       setFetchSuccess(true)
       setTimeout(() => setFetchSuccess(false), 2000)
@@ -44,15 +97,58 @@ export default function Withdraw() {
         <div className="max-w-7xl mx-auto mb-4 mt-6 px-4 sm:px-6 md:px-8">
           <h1 className="text-2xl font-semibold text-gray-900">Withdraw</h1>
         </div>
-        <NotificationPanel show={fetchSuccess} bgColor="bg-green-100" message="Publisher data updated!" />
-        <NotificationPanel show={fetchError} bgColor="bg-red-100" message="Error updating Publisher data!" />
+        <NotificationPanel show={fetchSuccess} bgColor="bg-green-100" message="Withdraw successful!" />
+        <NotificationPanel show={fetchError} bgColor="bg-red-100" message="Error withdrawing funds!" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
           <div className="mt-5 md:mt-0 md:col-span-2">
           <form onSubmit={onSubmit}>
             <div className="shadow sm:rounded-md sm:overflow-hidden">
               <div className="px-4 py-3 bg-white space-y-3 sm:p-6">
+              <div className="col-span-6 sm:col-span-4">
+                  <label htmlFor="stateAccount" className="block text-sm font-medium text-gray-700">State Account</label>
+                  <input 
+                    type="text" 
+                    name="stateAccountt" 
+                    value={stateAcct}
+                    disabled
+                    className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-50" 
+                  />
+                </div>
                 <div className="col-span-6 sm:col-span-4">
-                  <label htmlFor="withdrawAmount" className="block text-sm font-medium text-gray-700">Withdraw Amount</label>
+                  <label htmlFor="sharedAccount" className="block text-sm font-medium text-gray-700">Shared Token Account</label>
+                  <input 
+                    type="text" 
+                    name="sharedAccount" 
+                    value={sharedAcct}
+                    disabled
+                    className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-50" 
+                  />
+                </div>
+                <div className="col-span-6 sm:col-span-4">
+                  <label htmlFor="tokenMintAccount" className="block text-sm font-medium text-gray-700">Token Mint Account</label>
+                  <input 
+                    type="text" 
+                    name="tokenMintAccount" 
+                    value={TOKEN_MINT_ACCT}
+                    disabled
+                    className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-50" 
+                  />
+                </div>
+                <div className="col-span-6 sm:col-span-4">
+                  <label htmlFor="withdrawAccount" className="block text-sm font-medium text-gray-700">Withdraw Account</label>
+                  <input 
+                    type="text" 
+                    name="withdrawAccount" 
+                    value={withdrawAcct}
+                    onChange={evt => setWithdrawAcct(evt.target.value)} 
+                    required
+                    className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" 
+                  />
+                </div>
+                <div className="col-span-6 sm:col-span-4">
+                  <label htmlFor="withdrawAmount" className="block text-sm font-medium text-gray-700">
+                    Withdraw Amount [<a className="text-indigo-700 cursor-pointer" onClick={calculateMaxWithdrawAmount}>max</a>]
+                  </label>
                   <input 
                     type="text" 
                     name="withdrawAmount" 
@@ -62,19 +158,15 @@ export default function Withdraw() {
                     className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" 
                   />
                 </div>
-                <div className="col-span-6 sm:col-span-4">
-                  <label htmlFor="withdrawAccount" className="block text-sm font-medium text-gray-700">Withdraw Account</label>
-                  <input 
-                    type="text" 
-                    name="withdrawAccount" 
-                    value={withdrawAccount}
-                    onChange={evt => setWithdrawAccount(evt.target.value)} 
-                    required
-                    className="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" 
-                  />
-                </div>
+                
               </div>
               <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
+              { !wallet ? (
+                  <Button label="Connect Wallet" color="indigo" disabled={false} onClick={onConnectWallet} />
+                ) : (
+                  <></>
+                )
+              }
               { fetching ? (
                     <div className="inline-block text-center py-2 px-2 border border-transparent shadow-sm rounded-md h-10 w-20 bg-indigo-600 hover:bg-indigo-700">
                       <PulseLoader color="white" loading={fetching} size={9} /> 

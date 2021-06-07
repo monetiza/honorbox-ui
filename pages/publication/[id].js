@@ -128,7 +128,7 @@ export default function Publication() {
     }
 
     try {
-      const response = await api.request({  method, url, data: formData, headers: { "Content-Type": contentType } });
+      const response = await api.request({ method, url, data: formData, headers: { "Content-Type": contentType } });
       const savedPublication = response.data;
       setSaving(false);
       setSaveSuccess(true);

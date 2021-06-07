@@ -15,7 +15,7 @@ const ROYALTY_STRUCTURE_PATH = process.env.NEXT_PUBLIC_ROYALTY_STRUCTURE_PATH;
 const IconPencil = getIcon('pencil');
 const IconTrash = getIcon('trash');
  
-export default function RoyaltyStructures() {
+export default function RevenueSharings() {
 
   // Data fetching
   const { isReady } = useAuth();
@@ -55,7 +55,7 @@ export default function RoyaltyStructures() {
               </button>
             </div>
             <div className="mr-2 inline-block cursor-pointer">
-              <Link href={`/revenue-sharing/${royaltyStructure.id}`}>
+              <Link href={`/revenue-share/${royaltyStructure.id}`}>
                 <a><IconPencil color="text-gray-500" hoverColor="text-gray-900" width="6"/></a>
               </Link>
             </div>
@@ -79,9 +79,9 @@ export default function RoyaltyStructures() {
         <main className="flex-1 relative z-0 overflow-y-auto focus:outline-none" tabIndex="0">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 pb-6 sm:px-8 flex" >
-              <div className="flex-1"><h1 className="text-2xl font-semibold text-gray-900">Revenue Sharings</h1></div>
+              <div className="flex-1"><h1 className="text-2xl font-semibold text-gray-900">Revenue Shares</h1></div>
               <div>
-                <Link href="/revenue-sharing/new">
+                <Link href="/revenue-share/new">
                   <button type="button"className="relative inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-500 hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-indigo-500" >
                     <span>New</span>
                   </button>

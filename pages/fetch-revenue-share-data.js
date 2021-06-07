@@ -1,19 +1,18 @@
 import { useState } from 'react';
 import PulseLoader from 'react-spinners/PulseLoader';
-import { fetchStateAccountInfo } from '../lib/solana';
+import { fetchRevenueShareData } from '../lib/solana';
 import Layout from '../components/AppLayout';
 import NotificationPanel from '../components/NotificationPanel';
 
-const PUBLISHER_PATH=process.env.NEXT_PUBLIC_PUBLISHER_PATH
-
-const stateAcctStr = 'H2rMQHUe6mhEPg3hAjVG2Y2sbJcUxWbbc5SS8wR1B52p';
-const sharedAcctStr = '24VP4P6WNdzvF76ZascNEmBi7jSxhkju3Ga5N3E2P2hf'
+// TODO remove test data
+const stateAcctStr = 'BoNhzUP4d8qVcwFstjeMYDGrvR95nNBnqgoVQwkPPUDH';
+const sharedAcctStr = 'DvwGfe3g96vgzgDEwkL9LmKX97AAkossrcJLdS9N4TxP'
 
 export default function Profile() {
 
   // State Account state
-  const [stateAcct, setStateAcct] = useState('5Y9Mcod7JwhfPCiLXgzNbGGuAijq5s4dNQG8VQjD3kMX');
-  const [sharedAcct, setSharedAcct] = useState('AfxBRZewiD7ofswb2SYek9793iyzxUJ4CvPWFfwp8ZwP');
+  const [stateAcct, setStateAcct] = useState(stateAcctStr); // TODO remove test data 
+  const [sharedAcct, setSharedAcct] = useState(sharedAcctStr); // TODO remove test data
   const [sharedAcctBalance, setSharedAcctBalance] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
   const [member1Acct, setMember1Acct] = useState('');
@@ -33,10 +32,10 @@ export default function Profile() {
     setFetching(true);
 
     try {
-      const stateAcctInfo = await fetchStateAccountInfo(stateAcct, sharedAcct);
+      const stateAcctInfo = await fetchRevenueShareData(stateAcct, sharedAcct);
       let { isInitialized, member1Acct, member2Acct, member1Shares, member2Shares, member1Withdraw, member2Withdraw, sharedAcctBalance } = stateAcctInfo;
-      member1Withdraw = parseFloat(member1Withdraw) / 100;
-      member2Withdraw = parseFloat(member2Withdraw) / 100;
+      member1Withdraw = parseFloat(member1Withdraw);
+      member2Withdraw = parseFloat(member2Withdraw);
 
       setSharedAcctBalance(sharedAcctBalance);
       setIsInitialized(isInitialized);
@@ -61,10 +60,10 @@ export default function Profile() {
     <Layout>
       <main className="flex-1 relative z-0 overflow-y-auto focus:outline-none" tabIndex="0">
         <div className="max-w-7xl mx-auto mb-4 mt-6 px-4 sm:px-6 md:px-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Fetch Account Data</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Fetch Revenue Share Data</h1>
         </div>
-        <NotificationPanel show={fetchSuccess} bgColor="bg-green-100" message="Publisher data updated!" />
-        <NotificationPanel show={fetchError} bgColor="bg-red-100" message="Error updating Publisher data!" />
+        <NotificationPanel show={fetchSuccess} bgColor="bg-green-100" message="Revenue Share data fetched!" />
+        <NotificationPanel show={fetchError} bgColor="bg-red-100" message="Error fetching Revenue Share data!" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
         <div className="mt-5 md:mt-0 md:col-span-2">
           <form onSubmit={onSubmit}>
@@ -82,7 +81,7 @@ export default function Profile() {
                   />
                 </div>
                 <div className="col-span-6 sm:col-span-4">
-                  <label htmlFor="sharedAcct" className="block text-sm font-medium text-gray-700">Shared Account</label>
+                  <label htmlFor="sharedAcct" className="block text-sm font-medium text-gray-700">Shared Token Account</label>
                   <input 
                     type="text" 
                     name="sharedAcct" 
@@ -119,7 +118,7 @@ export default function Profile() {
               <div className="shadow sm:rounded-md sm:overflow-hidden">
                 <div className="px-4 py-5 bg-white space-y-6 sm:p-6">
                 <div className="col-span-6 sm:col-span-4">
-                    <label htmlFor="isInitialized" className="block text-sm font-medium text-gray-700">Shared Account Balance</label>
+                    <label htmlFor="isInitialized" className="block text-sm font-medium text-gray-700">Shared Token Account Balance</label>
                     <input 
                       type="text" 
                       name="sharedAccBalance" 
@@ -139,7 +138,7 @@ export default function Profile() {
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-4">
-                    <label htmlFor="member1Acct" className="block text-sm font-medium text-gray-700">Member 1 Account</label>
+                    <label htmlFor="member1Acct" className="block text-sm font-medium text-gray-700">Recipient 1 Main Account</label>
                     <input
                       type="text" 
                       name="member1Acct" 
@@ -149,7 +148,7 @@ export default function Profile() {
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-4">
-                    <label htmlFor="member2Acct" className="block text-sm font-medium text-gray-700">Member 2 Account</label>
+                    <label htmlFor="member2Acct" className="block text-sm font-medium text-gray-700">Recipient 2 Main Account</label>
                     <input
                       type="text" 
                       name="member2Acct" 
@@ -159,7 +158,7 @@ export default function Profile() {
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-4">
-                    <label htmlFor="member1Shares" className="block text-sm font-medium text-gray-700">Member 1 Shares</label>
+                    <label htmlFor="member1Shares" className="block text-sm font-medium text-gray-700">Recipient 1 Shares</label>
                     <input
                       type="text" 
                       name="member1Shares" 
@@ -169,7 +168,7 @@ export default function Profile() {
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-4">
-                    <label htmlFor="member2Shares" className="block text-sm font-medium text-gray-700">Member 2 Shares</label>
+                    <label htmlFor="member2Shares" className="block text-sm font-medium text-gray-700">Recipient 2 Shares</label>
                     <input
                       type="text" 
                       name="member2Shares" 
@@ -179,7 +178,7 @@ export default function Profile() {
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-4">
-                    <label htmlFor="member1WithDraw" className="block text-sm font-medium text-gray-700">Member 1 Withdraw</label>
+                    <label htmlFor="member1WithDraw" className="block text-sm font-medium text-gray-700">Recipient 1 Withdraw</label>
                     <input
                       type="text" 
                       name="member1Withdraw" 
@@ -189,7 +188,7 @@ export default function Profile() {
                     />
                   </div>
                   <div className="col-span-6 sm:col-span-4">
-                    <label htmlFor="member2Withdraw" className="block text-sm font-medium text-gray-700">Member 2 Withdraw</label>
+                    <label htmlFor="member2Withdraw" className="block text-sm font-medium text-gray-700">Recipient 2 Withdraw</label>
                     <input
                       type="text" 
                       name="member2Withdraw" 

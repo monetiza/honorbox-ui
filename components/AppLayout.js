@@ -18,8 +18,8 @@ const menuItems = [
   },
   {
     icon: 'currencyDollar',
-    label: 'Revenue Sharing',
-    href: '/revenue-sharings'
+    label: 'Revenue Shares',
+    href: '/revenue-shares'
   },
   {
     icon: 'bookOpen',
